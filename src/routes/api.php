@@ -122,7 +122,9 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 			}
 			try{
 				$customer_id = $customer->id;
-				// Insert post into the database
+				$customer_name = $customer->name;	
+				$customer_email = $customer->email;	
+
 				$sql = "UPDATE	app_acceso
 				SET		openpay_customer = '$customer_id'
 				WHERE	clav_re = $user_id";
@@ -174,6 +176,12 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 			$result = $stmt->execute();
 			$query = $stmt->fetchObject();
 
+	
+			$name = $customer_name;
+			$subject = "Confirmación de pago";
+
+			Mailer::send("guslopezcallejas@gmail.com", $name, $subject);
+
 		}catch (PDOException $e) {
 			$this["logger"]->error("DataBase Error: {$e->getMessage()}");
 		}
@@ -182,7 +190,7 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 				->withStatus(201, "OK")
 				->withJson([
 					'id' => $charge->id,
-					'status' => $charge->status, ]);
+					'status' => $charge->status ]);
 		}
 
 	});
