@@ -79,6 +79,11 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 	 * @return	string
 	 */
 	$app->get("/ping", function (Request $request, Response $response) {
+		$name = "Hola";
+		$subject = "Confirmación de pago";
+
+		Mailer::send("guslopezcallejas@gmail.com", $name, $subject);
+
 		return "pong";
 	});
 
@@ -95,6 +100,9 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 		/** @var string $quote - The text of post */
 		
 		$user_id = $request->getParam("user_id");
+		$customer_name = null;
+		$customer_email = null;
+
 		$conn = PDOConnection::getConnection();
 		$openpay = Openpay::getInstance('mdrhnprmsmxkgxtegzhk', 'sk_c71babd865fd420b94bc588a8585c122');
 
@@ -109,6 +117,8 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 		
 		if($query->openpay_customer){
 			$customer_id = $query->openpay_customer;
+			$customer_name = $query->nomb_ac;	
+			$customer_email = $query->corr_ac;
 		}else{
 			$customer = array(
 				'name' => $query->nomb_ac,
@@ -117,13 +127,15 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 			);
 			try{
 				$customer = $openpay->customers->add($customer);
+				
 			}catch (PDOException $e) {
 				$this["logger"]->error("DataBase Error: {$e->getMessage()}");
 			}
+			$customer_name = $customer->name;	
+			$customer_email = $customer->email;
 			try{
 				$customer_id = $customer->id;
-				$customer_name = $customer->name;	
-				$customer_email = $customer->email;	
+					
 
 				$sql = "UPDATE	app_acceso
 				SET		openpay_customer = '$customer_id'
@@ -148,6 +160,7 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 		$charge = null;
 		$errorMsg = null;
 		$errorCode = null;
+		$email = null;
 
 		try{
 			$customer = $openpay->customers->get($customer_id);
@@ -166,7 +179,6 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 					]);
 		} else {
 			$conn = PDOConnection::getConnection();
-			$fecha = date("Y-m-d H:i:s");
 
 			try{
 			// Gets the user into the database
@@ -176,21 +188,20 @@ $app->group("/webresources/mobile_app", function () use ($app) {
 			$result = $stmt->execute();
 			$query = $stmt->fetchObject();
 
-	
-			$name = $customer_name;
-			$subject = "Confirmación de pago";
-
-			Mailer::send("guslopezcallejas@gmail.com", $name, $subject);
-
 		}catch (PDOException $e) {
 			$this["logger"]->error("DataBase Error: {$e->getMessage()}");
 		}
-			
+				$subject = "Confirmación de pago";
+
+				$email = Mailer::send($customer_email, $customer_name, $charge);
+
 			return $response = $response->withHeader("Content-Type", "application/json")
 				->withStatus(201, "OK")
 				->withJson([
 					'id' => $charge->id,
-					'status' => $charge->status ]);
+					'status' => $charge->status,
+					'email' => $email,
+					 ]);
 		}
 
 	});
